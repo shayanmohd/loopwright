@@ -1,0 +1,22 @@
+{
+  "app": "Loopwright",
+  "org": "SocialSure Private Limited",
+  "site": "https://shayanmohd.github.io/loopwright/",
+  "email": "shayanm2002@gmail.com",
+  "bg": "#17120F", "fg": "#F6EEE5", "muted": "#B09E8F", "hair": "#3B2F27", "accent": "#EE8B3F",
+  "bgDark": "#17120F", "fgDark": "#F6EEE5", "mutedDark": "#B09E8F", "hairDark": "#3B2F27", "accentDark": "#EE8B3F",
+  "fontFamily": "'Hanken Grotesk', system-ui, -apple-system, sans-serif",
+  "fontCss": "fonts/fonts.css",
+  "permissions": [
+    ["RECORD_AUDIO", "the whole point of the app. Loopwright listens while you hum or beatbox and turns what it hears into notes and drum hits. Android asks you for the microphone the first time you tap the record pad, and the listening happens on this device"],
+    ["VIBRATE", "the count-in you can feel in your hand while you wait for the one, and a short thump when a loop closes"]
+  ],
+  "network": false,
+  "collects": [],
+  "storage": "Your songs, the layers inside them and the short recordings kept behind the compare toggle are written to this device's private app storage. Nothing is uploaded, because the app cannot open a network connection at all. Deleting a song deletes its recordings with it, Settings can erase everything in two taps, and uninstalling the app removes the lot.",
+  "extra": [
+    ["The microphone", "Loopwright asks Android for the microphone the first time you tap the record pad, and Android shows its own dialogue. While a take runs, the audio sits in memory and is analysed into a list of notes or drum hits. The analysis happens on this phone, in ordinary signal processing code, with no model and no server. What is kept afterwards is that list of notes, plus a short low quality copy of the take so you can hear your own voice against the instrument it became. Both live only on this device. The microphone is released when the app goes to the background."],
+    ["Exported files", "Exporting a mix or its stems writes WAV files into this device's Downloads folder, at your tap. A file leaves the phone only if you choose to send it somewhere yourself, with an app you picked. Loopwright adds no watermark to your audio and claims nothing over what you make: your songs are yours, including commercially."],
+    ["Device backup", "If you have Android's own backup to your Google account switched on, the operating system may include this app's data in that backup. That is a setting on your phone and an arrangement between you and Google. Loopwright does not perform it, cannot see it, and receives nothing from it. Switching it off for this app in your phone's settings stops it."]
+  ]
+}

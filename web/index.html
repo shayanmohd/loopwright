@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Loopwright</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header id="topbar" hidden>
+  <button class="tb-title" id="tbTitle"><span id="tbTitleText">Untitled</span></button>
+  <button class="tb-key" id="tbKey">
+    <span class="num" id="tbBpm">100</span>
+    <span class="unit">bpm</span>
+    <span class="dot" aria-hidden="true"></span>
+    <span class="keyname" id="tbKeyName">F minor</span>
+  </button>
+</header>
+
+<main id="stage">
+
+  <!-- ================= PAD ================= -->
+  <section class="view" id="v-pad">
+    <div class="scenerow" id="sceneRow"></div>
+
+    <div class="padwrap">
+      <div class="padstack">
+        <svg class="ring" id="ring" viewBox="0 0 300 300" aria-hidden="true"></svg>
+        <button class="pad" id="pad">
+          <span class="pad-big" id="padBig">Hum</span>
+          <span class="pad-sub" id="padSub">Tap and hum a melody</span>
+        </button>
+      </div>
+      <p class="padnote" id="padNote"></p>
+    </div>
+
+    <div class="layerstrip" id="layerStrip"></div>
+
+    <div class="shelf" id="shelf" role="group" aria-label="Voices"></div>
+
+    <div class="transport">
+      <button class="tbtn" id="btnPlay" aria-label="Play or stop the loop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="7,4 20,12 7,20"/></svg>
+        <em id="playLabel">Play</em>
+      </button>
+      <button class="tbtn" id="btnUndo" aria-label="Remove the last layer">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="M9 6 L4 11 L9 16 M4 11 H15 a5 5 0 0 1 5 5 v2"/></svg>
+        <em>Undo</em>
+      </button>
+      <button class="tbtn" id="btnScene" aria-label="Duplicate this scene">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 20 h10 a2 2 0 0 0 2 -2 V8"/></svg>
+        <em>Copy scene</em>
+      </button>
+    </div>
+  </section>
+
+  <!-- ================= ARRANGE ================= -->
+  <section class="view scrolls" id="v-arrange" hidden>
+    <div class="scroller">
+      <h1 class="h1">Arrange</h1>
+      <p class="lede">A scene is one set of loops. Line the scenes up, say how many times each one goes round, and that is a song.</p>
+
+      <div class="panel">
+        <div class="panelhead">
+          <h2 class="h2">The song</h2>
+          <span class="len" id="songLen"></span>
+        </div>
+        <div class="strip" id="strip"></div>
+        <p class="help" id="stripHelp"></p>
+        <div class="btnrow">
+          <button class="btn" id="playSong">Play the song</button>
+          <button class="btn ghost" id="shapeBtn">Suggest a shape</button>
+        </div>
+        <div class="progress" id="songProg" hidden><i></i></div>
+      </div>
+
+      <div class="panel">
+        <h2 class="h2">Scenes</h2>
+        <p class="help">Tap a scene to add it to the song. Open one on the Pad to change what is in it.</p>
+        <div class="scenelist" id="sceneList"></div>
+      </div>
+
+      <div class="panel">
+        <h2 class="h2">Take it with you</h2>
+        <p class="help">A WAV of the finished mix, or one file per layer if you want to keep working somewhere else.</p>
+        <div class="btnrow">
+          <button class="btn" id="exportMix">Export the mix</button>
+          <button class="btn ghost" id="exportStems">Export the stems</button>
+          <button class="btn ghost" id="shareMix" hidden>Share the mix</button>
+        </div>
+        <p class="help" id="exportNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= LIBRARY ================= -->
+  <section class="view scrolls" id="v-library" hidden>
+    <div class="scroller">
+      <h1 class="h1">Library</h1>
+      <p class="lede" id="libLede"></p>
+      <button class="btn wide" id="newSong">Start a new song</button>
+
+      <div class="cards" id="cards"></div>
+
+      <div class="panel" id="settingsPanel">
+        <h2 class="h2">Settings</h2>
+
+        <div class="field">
+          <label for="countSel">Count in</label>
+          <select id="countSel">
+            <option value="0">None. Start the moment I tap</option>
+            <option value="2">Two beats</option>
+            <option value="4">Four beats</option>
+            <option value="8">Eight beats</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="tightRange">How tight, by default <b class="val" id="tightVal">85</b></label>
+          <input type="range" id="tightRange" min="0" max="100" step="5">
+          <p class="help">Zero keeps your timing exactly as you played it. One hundred puts every note on the grid. Every layer can be changed afterwards.</p>
+        </div>
+
+        <div class="field row">
+          <div><label for="clickChk">Count-in click</label><p class="help">A pulse in the song's own key while you wait for the one.</p></div>
+          <input type="checkbox" id="clickChk">
+        </div>
+        <div class="field row">
+          <div><label for="hapChk">Haptics</label><p class="help">The count-in in your hand, and a thump when a loop closes.</p></div>
+          <input type="checkbox" id="hapChk">
+        </div>
+
+        <div class="btnrow mt">
+          <button class="btn ghost" id="guideBtn">Run the first song walkthrough</button>
+          <button class="btn ghost danger" id="eraseBtn">Erase everything</button>
+        </div>
+        <p class="help" id="setNote"></p>
+      </div>
+
+      <p class="colophon">Loopwright listens on this device and nowhere else. No account, no internet permission, no adverts. Every song you make is yours to use however you like.</p>
+    </div>
+  </section>
+</main>
+
+<nav id="tabs" hidden>
+  <button class="tab is-on" data-view="pad">Pad</button>
+  <button class="tab" data-view="arrange">Arrange</button>
+  <button class="tab" data-view="library">Library</button>
+</nav>
+
+<!-- ================= SHEETS ================= -->
+
+<div class="sheet" id="layerSheet" hidden>
+  <div class="sheet-panel">
+    <div class="sheethead">
+      <p class="sheet-title" id="lsTitle">Layer</p>
+      <button class="xbtn" id="lsClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+      </button>
+    </div>
+
+    <p class="sheet-help" id="lsHelp"></p>
+
+    <p class="fieldlabel">Voice</p>
+    <div class="carousel" id="lsVoices"></div>
+
+    <div class="field">
+      <label for="lsVol">Volume <b class="val" id="lsVolVal">85</b></label>
+      <input type="range" id="lsVol" min="0" max="100" step="5">
+    </div>
+    <div class="field">
+      <label for="lsTight">Looser to tighter <b class="val" id="lsTightVal">85</b></label>
+      <input type="range" id="lsTight" min="0" max="100" step="5">
+      <p class="help">Slide left to keep the way you played it. Slide right to put it on the grid.</p>
+    </div>
+    <div class="field" id="lsOctField">
+      <label>Octave</label>
+      <div class="stepper">
+        <button class="step" id="lsOctDown" aria-label="Octave down">Lower</button>
+        <b id="lsOctVal">0</b>
+        <button class="step" id="lsOctUp" aria-label="Octave up">Higher</button>
+      </div>
+    </div>
+    <div class="field row" id="lsChordField">
+      <div><label for="lsChords">Chords</label><p class="help">Long held notes fill out into chords that belong to the key.</p></div>
+      <input type="checkbox" id="lsChords">
+    </div>
+    <div class="field row" id="lsAbField">
+      <div><label for="lsAb">Play my voice instead</label><p class="help">Hear the take you actually recorded, in place of the instrument.</p></div>
+      <input type="checkbox" id="lsAb">
+    </div>
+
+    <button class="btn ghost danger wide" id="lsDelete">Remove this layer</button>
+  </div>
+</div>
+
+<div class="sheet" id="keySheet" hidden>
+  <div class="sheet-panel">
+    <div class="sheethead">
+      <p class="sheet-title">Tempo and key</p>
+      <button class="xbtn" id="ksClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+      </button>
+    </div>
+    <p class="sheet-help">Loopwright works both of these out from your first take. Change them here if it guessed wrong.</p>
+
+    <div class="bigreadout"><b id="ksBpm">100</b><span>bpm</span></div>
+    <div class="stepper wide">
+      <button class="step" id="ksSlower">Slower</button>
+      <button class="step" id="ksTap">Tap the tempo</button>
+      <button class="step" id="ksFaster">Faster</button>
+    </div>
+    <p class="help" id="ksTapNote">Tap four times in time and Loopwright will follow you.</p>
+
+    <p class="fieldlabel">Key</p>
+    <div class="keygrid" id="ksTonics"></div>
+    <div class="modes">
+      <button class="mode" data-mode="major">Major</button>
+      <button class="mode" data-mode="minor">Minor</button>
+    </div>
+    <p class="help">Changing the key moves every melody you have recorded into it. Nothing is lost.</p>
+  </div>
+</div>
+
+<div class="sheet" id="nameSheet" hidden>
+  <div class="sheet-panel">
+    <div class="sheethead">
+      <p class="sheet-title">Name this song</p>
+      <button class="xbtn" id="nsClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label for="nsInput">Title</label>
+      <input type="text" id="nsInput" maxlength="42" autocomplete="off" placeholder="Felt in F minor">
+    </div>
+    <p class="help" id="nsSuggest"></p>
+    <button class="btn wide" id="nsSave">Save the name</button>
+  </div>
+</div>
+
+<div class="sheet" id="introSheet" hidden>
+  <div class="sheet-panel">
+    <p class="intro-eyebrow">Loopwright</p>
+    <h2 class="intro-h">The song in your head, out loud.</h2>
+    <p class="intro-p">Hum a melody and it comes back as a felt piano. Say boots and cats and it comes back as drums. Stack the loops, drop layers in and out while it plays, and you have made something.</p>
+    <ul class="intro-list">
+      <li>You need no theory and no instrument. Your voice is the input.</li>
+      <li>Headphones help a lot. Without them the microphone hears the loop as well as you.</li>
+      <li>Everything stays on this phone. Nothing is uploaded, because the app cannot reach the internet at all.</li>
+    </ul>
+    <button class="btn wide" id="introGo">Let me hum something</button>
+  </div>
+</div>
+
+<div class="coach" id="coach" hidden>
+  <div class="coach-inner">
+    <p class="coach-step" id="coachStep"></p>
+    <p class="coach-text" id="coachText"></p>
+    <div class="coach-row">
+      <button class="quietlink" id="coachSkip">Skip the walkthrough</button>
+    </div>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden>
+  <div class="busy-inner">
+    <div class="pulse" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p id="busyText">Listening back</p>
+  </div>
+</div>
+
+<p id="toast" class="toast" hidden></p>
+
+<script src="js/voices.js"></script>
+<script src="js/dsp.js"></script>
+<script src="js/store.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
