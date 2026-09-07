@@ -47,7 +47,7 @@ web/                 the app: no build step, no framework, no CDN, works offline
   fonts/             self-hosted Hanken Grotesk and Space Grotesk
 android/             WebView shell: haptics, file export, share sheet, safe-area insets
 docs/                the site, the privacy policy, and a playable copy of the app under docs/play
-store/               brand spec, listing copy, screenshots and the screenshot seed
+store/               the icon and feature graphic sources, listing copy, screenshots and the seed
 ```
 
 ## Building
@@ -79,12 +79,14 @@ used by the screenshot run and is handy for working on the screens without recor
 
 ```sh
 node ../_shiptools/shots.js store/shots.json          # six 1080x1920 captures
-python ../_shiptools/brand.py store/brand.json --out store --res android/app/src/main/res
+node ../_shiptools/render-brand.js loopwright         # icon set and feature graphic
 python ../_shiptools/privacy.py store/policy.json --out docs/privacy-policy.html
 rsync -a --delete web/ docs/play/
 ```
 
-The icon and the feature graphic are drawn from primitives in `store/brand.json`, so the listing can
+`store/icon.svg` is a hand-written 108 unit drawing with three groups in it: the background, the mark,
+and the mark again as a flat silhouette for Android's themed icons. `store/feature.html` is a
+hand-written 1024x500 page. Both are rendered to PNG by a local headless browser, so the listing can
 answer the AI-assets question honestly.
 
 ## What was left out

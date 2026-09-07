@@ -1,3 +1,3 @@
 A new look, and a mark of its own. The ring around the pad is now your loop drawn as a waveform: every layer takes a slice and shows its own shape, so you can see the song as well as hear it.
 
-Fixed: a quick double tap on the pad could arm a second take over the first, or add two scenes at once. A very long arrangement now says so before it tries to render. Playback, recording and the microphone all stop properly when you leave the app.
+Fixed: a quick double tap on the pad could arm a second take over the first, or add two scenes at once. A very long arrangement now says so before it tries to render. The pad now fits every screen. Playback, recording and the microphone all stop when you leave the app.

@@ -89,11 +89,11 @@ const App = (() => {
   const RING_R = 112;
 
   /** A layer's energy round the loop, in `bins` samples, peak normalised. */
-  function envelope(layer, bins) {
-    const key = bins + '|' + (project.beats || 8) + '|' + (layer.src ? layer.src.length : 0) + '|' + layer.kind;
+  function envelope(layer, bins, ofBeats) {
+    const beats = ofBeats || project.beats || 8;
+    const key = bins + '|' + beats + '|' + (layer.src ? layer.src.length : 0) + '|' + layer.kind;
     if (layer._env && layer._envk === key) return layer._env;
     const out = new Float32Array(bins);
-    const beats = project.beats || 8;
     const drum = layer.kind === 'drum';
     (layer.src || []).forEach(e => {
       const at = (((e.t % beats) + beats) % beats) / beats;
@@ -344,6 +344,11 @@ const App = (() => {
       '" data-s="' + s.id + '">Scene ' + escapeHtml(s.name) + '</button>'
     ).join('') + '<button class="scenechip add" data-add="1">' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 V18 M6 12 H18"/></svg>New scene</button>';
+    // with eight scenes the open one can sit off the end of the row; the row is
+    // scrolled by hand rather than with scrollIntoView, which would also move the
+    // pad screen underneath it
+    const on = row.querySelector('.is-on');
+    if (on) row.scrollLeft = Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
     Array.prototype.forEach.call(row.children, el => {
       el.addEventListener('click', () => {
         if (el.getAttribute('data-add')) {
@@ -395,7 +400,7 @@ const App = (() => {
   async function runTake() {
     const sc = Store.current(project);
     if (sc.layers.length >= 8) {
-      toast('Eight layers is the most a scene holds. Copy the scene, or remove one.');
+      note('Eight layers is the most a scene holds. Copy the scene, or remove one.', true);
       return;
     }
     const first = sc.layers.length === 0;
@@ -625,8 +630,12 @@ const App = (() => {
     $('#lsDelete').addEventListener('click', () => {
       if (!openLayer) return;
       const id = openLayer.id;
+      const sc = Store.current(project);
       Engine.forget(id);
-      Store.removeLayer(project, Store.current(project), id);
+      Store.removeLayer(project, sc, id);
+      // removing the last one leaves the transport running over nothing, with the
+      // playhead still going round an empty ring and Stop disabled
+      if (!sc.layers.length) Engine.stop();
       openLayer = null;
       sheet('#layerSheet', false);
       renderPad();
@@ -992,27 +1001,31 @@ const App = (() => {
 
   /* ------------------------------------------------------------- library */
 
-  /* The card thumbnail is the same ring, small: one arc per layer, so a library
-     of songs reads as a shelf of loops rather than a list of file names. */
+  /* The card thumbnail is the pad's ring drawn small, through the same two
+     functions: one arc per layer, each carrying that layer's own waveform, so a
+     library of songs reads as a shelf of loops rather than a list of file names.
+     It shares the pad's 300 unit space, which is what keeps the two identical. */
+  const THUMB_R = 96;
   function thumb(p) {
-    const layers = Store.layerCount(p);
-    const n = Math.max(1, Math.min(8, layers));
-    const rad = d => (d - 90) * Math.PI / 180;
-    const at = (deg, r) => [(25 + r * Math.cos(rad(deg))).toFixed(1), (25 + r * Math.sin(rad(deg))).toFixed(1)];
-    let s = '<svg class="thumb" viewBox="0 0 50 50" aria-hidden="true">';
-    s += '<circle cx="25" cy="25" r="17" fill="none" stroke="#2B3222" stroke-width="3"/>';
-    if (!layers) {
-      s += '<path d="M8 25 C11 25 10.4 18 13.5 18 C17.2 18 16.6 32 20.5 32 C24 32 23.4 18 27 18 C30.7 18 30 25 34 25" ' +
-           'fill="none" stroke="#5C6844" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    const layers = [];
+    p.scenes.forEach(sc => sc.layers.forEach(l => { if (layers.length < 8) layers.push(l); }));
+    const n = layers.length;
+    let s = '<svg class="thumb" viewBox="0 0 300 300" aria-hidden="true">';
+    s += '<circle cx="150" cy="150" r="' + THUMB_R + '" fill="none" stroke="#2B3222" stroke-width="' +
+         (n ? 10 : 7) + '"/>';
+    if (!n) {
+      s += '<path class="seg seg-idle" stroke-width="17" d="' + idlePath(THUMB_R, 22) + '"/>';
     }
-    for (let i = 0; i < n && layers; i++) {
-      const a0 = i * 360 / n + (n > 1 ? 9 : 3), a1 = (i + 1) * 360 / n - (n > 1 ? 9 : 3);
-      const [x0, y0] = at(a0, 17), [x1, y1] = at(a1, 17);
-      s += '<path d="M' + x0 + ' ' + y0 + ' A17 17 0 ' + ((a1 - a0) > 180 ? 1 : 0) + ' 1 ' + x1 + ' ' + y1 +
-           '" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>';
+    for (let i = 0; i < n; i++) {
+      const gap = n > 1 ? 9 : 4;
+      const a0 = i * 360 / n + gap / 2, a1 = (i + 1) * 360 / n - gap / 2;
+      // a fraction of the pad's amplitude: at fifty pixels the full swing reads as
+      // a scribble, and what is wanted here is the ring with a grain in it
+      const d = segPath(a0, a1, THUMB_R, layers[i].muted ? 3 : 8, envelope(layers[i], 48, p.beats));
+      s += '<path class="seg ' + (layers[i].muted ? 'seg-off' : 'seg-on') +
+           '" stroke-width="' + (layers[i].muted ? 11 : 17) + '" d="' + d + '"/>';
     }
-    s += '</svg>';
-    return s;
+    return s + '</svg>';
   }
 
   /* The hum going in on the left, bending round into the closed loop that comes

@@ -14,7 +14,7 @@
   --raise: #333A26;
   --fg: #F2F6E6;
   --muted: #A9B295;
-  --dim: #8B9578;
+  --dim: #96A180;      /* AA at 4.5 against the lightest surface stop, measured */
   --hair: #333A28;
 
   --accent: #C3E640;
@@ -195,20 +195,25 @@ body.bare #stage { top: 0; bottom: 0; }
 .scenechip.add svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
 .scenechip:active { transform: scale(.96); }
 
+/* The pad has to fit the space it is actually given, not the space the viewport
+   suggests: the walkthrough card, a tall status bar and a short phone all eat
+   into it. Sizing it from its container does that, but a container with size
+   containment contributes no minimum of its own, so on a 640 tall phone with the
+   walkthrough card up the pad collapsed to a sliver and its label pushed it over
+   the rows either side. The floor below is what stops that, and the pad screen
+   scrolls rather than overlaps if even the floor will not fit. */
 .padwrap { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 10px; min-height: 0; padding: 6px 16px 0;
+  justify-content: center; gap: 10px; min-height: 216px; padding: 6px 16px 0;
   container-type: size; }
 .padstack { position: relative; width: min(80vw, 44vh, 350px); aspect-ratio: 1;
   display: grid; place-items: center; flex: 0 0 auto; }
-/* The pad has to fit the space it is actually given, not the space the viewport
-   suggests: the walkthrough card, a tall status bar and a short phone all eat
-   into it, and the ring used to climb over the scene chips. */
 @supports (container-type: size) {
-  .padstack { width: min(86cqw, 80cqh, 400px); }
+  .padstack { width: min(86cqw, 92cqh, 400px); }
 }
 @supports not (container-type: size) {
   @media (max-height: 780px) { .padstack { width: min(62vw, 32vh, 260px); } }
 }
+#v-pad { overflow-y: auto; }
 .ring { position: absolute; inset: -6%; width: 112%; height: 112%; overflow: visible; }
 
 .pad {
@@ -244,7 +249,7 @@ body.bare #stage { top: 0; bottom: 0; }
 /* the ring: one closed waveform, cut into a segment for each layer */
 .seg { fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
 .seg-bg { stroke: #2B3222; }
-.seg-idle { stroke: #4C5A38; }
+.seg-idle { stroke: #66764A; }
 .seg-on { stroke: var(--accent); }
 .seg-off { stroke: #63704B; }
 .seg-glow { stroke: var(--accent); opacity: .22; filter: blur(5px); }
@@ -537,15 +542,26 @@ input[type="checkbox"]:checked::after {
 }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .sheet[hidden] { display: none; }
+/* The panel scrolls, so a bottom padding inside it is no protection: at the top
+   of the scroll its last control lands under the gesture bar. The panel stops
+   above the bar instead, and the band below it is filled to keep the sheet
+   reading as one surface that runs off the bottom of the screen. */
 .sheet-panel {
   width: 100%; max-width: var(--measure);
   background: linear-gradient(180deg, #1F2318 0%, var(--stage) 40%, #15180F 100%);
   border: 1px solid var(--hair); border-bottom: 0;
   border-radius: 20px 20px 0 0;
-  padding: 18px 18px calc(28px + var(--sab, 0px));
-  max-height: 88vh; overflow-y: auto;
+  padding: 18px 18px 26px;
+  margin-bottom: var(--sab, 0px);
+  max-height: calc(88vh - var(--sat, 0px) - var(--sab, 0px));
+  overflow-y: auto;
   box-shadow: 0 -18px 60px rgba(6, 9, 3, .7);
   animation: rise .24s cubic-bezier(.2, .7, .3, 1);
+}
+.sheet::after {
+  content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: var(--measure); height: var(--sab, 0px);
+  background: #15180F; pointer-events: none;
 }
 @keyframes rise { from { transform: translateY(26px); opacity: .4; } to { transform: none; opacity: 1; } }
 .sheethead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -619,6 +635,21 @@ body.coached #v-pad { padding-bottom: calc(var(--coachh, 96px) + 14px); }
 }
 @keyframes toastin { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast[hidden] { display: none; }
+
+/* A short phone gives the shelf less to say and the pad more room to be itself.
+   It sits at the end so it wins against the rules it trims. */
+@media (max-height: 760px) {
+  .vtile span.blurb { display: none; }
+  .vtile { width: 96px; padding: 8px 10px 9px; }
+  .vtile b { min-height: 30px; }
+  .padnote { min-height: 26px; }
+  .scenerow { padding: 7px 16px 2px; }
+  .transport { padding-bottom: 9px; }
+  .padwrap { min-height: 200px; }
+  .coach-inner { padding: 11px 13px 5px; }
+  .coach-text { font-size: 14px; }
+  .coach-row .quietlink { font-size: 13px; padding: 6px 4px; }
+}
 
 /* Animations off on Android maps to this. Travel stops; every shape stays where
    it is, at the size it would have held mid-cycle. Nothing collapses to a line. */
