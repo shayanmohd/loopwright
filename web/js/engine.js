@@ -261,12 +261,19 @@ const Engine = (() => {
 
   function invalidate(layer) { if (layer) { layer._d = null; bufCache.delete(layer.id); } }
 
+  /** Rendered loops are megabytes each. Leaving one song's worth behind when the
+      user opens another is how a library of songs turns into a hundred megabytes. */
+  function dropCache() { bufCache.clear(); }
+
   /* -------------------------------------------------------------- transport */
-  const T = { on: false, gen: 0, t0: 0, loopSec: 0, project: null, scene: null, nodes: new Map() };
+  /* `armed` is the gap between "the transport is on" and "t0 means something":
+     the layers are rendered first, and until the clock is picked the old t0 would
+     otherwise send the playhead round the ring from a position nobody asked for. */
+  const T = { on: false, armed: false, gen: 0, t0: 0, loopSec: 0, project: null, scene: null, nodes: new Map() };
 
   const playing = () => T.on;
   function phase() {
-    if (!T.on || !ctx) return -1;
+    if (!T.on || !T.armed || !ctx) return -1;
     const d = ctx.currentTime - T.t0;
     if (d < 0) return 0;
     return (d % T.loopSec) / T.loopSec;
@@ -274,6 +281,7 @@ const Engine = (() => {
   function nextBoundary(min) {
     const c = ready();
     const ahead = Math.max(min || 0.12, 0.12);
+    if (!T.armed || !T.loopSec) return c.currentTime + ahead;
     const k = Math.ceil((c.currentTime + ahead - T.t0) / T.loopSec);
     return T.t0 + k * T.loopSec;
   }
@@ -310,23 +318,41 @@ const Engine = (() => {
     T.nodes.set(layer.id, { s, g });
   }
 
+  /* Every buffer is rendered before anything starts. Rendering eight layers can take
+     longer than the lead-in, and a start time already in the past starts immediately,
+     which used to leave the layers spread across the render time instead of locked
+     together. Render first, pick the clock second. */
   async function play(project, sceneId) {
     const c = ready(); if (!c) return;
     const scene = Store.scene(project, sceneId) || Store.current(project);
     stop();
     T.project = project; T.scene = scene.id;
     T.loopSec = project.beats * 60 / project.bpm;
-    T.on = true; T.gen++;
-    const t0 = c.currentTime + 0.18;
-    T.t0 = t0;
-    const layers = scene.layers;
-    for (let i = 0; i < layers.length; i++) await startLayer(project, layers[i], i, t0);
+    T.on = true; T.armed = false;
+    const gen = ++T.gen;
+    const layers = scene.layers.slice();
+    const bufs = [];
+    for (let i = 0; i < layers.length; i++) {
+      const b = await layerBuffer(project, layers[i], c.sampleRate);
+      if (!T.on || gen !== T.gen) return;
+      bufs.push(b);
+    }
+    const t0 = c.currentTime + 0.12;
+    T.t0 = t0; T.armed = true;
+    for (let i = 0; i < layers.length; i++) {
+      const g = chain(layers[i], i);
+      const s = c.createBufferSource();
+      s.buffer = bufs[i]; s.loop = true;
+      s.connect(g);
+      s.start(t0);
+      T.nodes.set(layers[i].id, { s, g });
+    }
   }
 
   function stop() {
     T.nodes.forEach(n => { try { n.s.stop(); } catch (e) {} try { n.g.disconnect(); } catch (e) {} });
     T.nodes.clear();
-    T.on = false; T.gen++;
+    T.on = false; T.armed = false; T.gen++;
   }
 
   function setGain(layer) {
@@ -336,10 +362,12 @@ const Engine = (() => {
   }
 
   /** A layer changed. Swap its buffer in on the next loop boundary, silently. */
+  /* A layer changed. The next loop boundary is chosen after the render, not before:
+     a slow render used to push the swap past the boundary it was aiming at. */
   async function refresh(project, layer, index) {
     invalidate(layer);
     if (!T.on) return;
-    await startLayer(project, layer, index, nextBoundary(0.16));
+    await startLayer(project, layer, index);
   }
 
   function forget(layerId) {
@@ -350,6 +378,7 @@ const Engine = (() => {
 
   /* ------------------------------------------------------------ recording */
   let rec = null;
+  const FIRST_MAX = 26;   // seconds; a first loop longer than this is a recording, not a loop
   const PRE = 0.13;    // heard before the one, so a hit that lands early is not lost
   const POST = 0.13;   // and after the loop point, so a late one wraps round instead
 
@@ -385,7 +414,7 @@ const Engine = (() => {
     rec = state;
     const p = new Promise(res => { state.resolve = res; });
 
-    const tickTo = opts.first ? startAt + 26 : endAt;
+    const tickTo = opts.first ? startAt + FIRST_MAX : endAt;
     state.timer = setInterval(() => {
       if (!rec) return;
       const now = c.currentTime;
@@ -557,7 +586,8 @@ const Engine = (() => {
     derive, suggestOctave, layerBuffer, invalidate,
     play, stop, playing, phase, setGain, refresh, forget, nextBoundary,
     record, finish, cancelRecord, recording,
-    preview, chime, renderSong, wav, base64, suspend,
+    preview, chime, renderSong, wav, base64, suspend, dropCache,
+    firstMax: () => FIRST_MAX,
     loopSec: () => T.loopSec, scene: () => T.scene
   };
 })();

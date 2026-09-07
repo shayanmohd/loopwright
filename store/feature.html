@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "Display"; src: url("display.ttf"); }
+  html, body { margin: 0; width: 1024px; height: 500px; overflow: hidden; }
+  body {
+    position: relative; color: #F2F6E6; font-family: "Display", Georgia, serif;
+    background:
+      radial-gradient(58% 82% at 24% 52%, rgba(195, 230, 64, 0.22), rgba(195, 230, 64, 0) 62%),
+      radial-gradient(90% 120% at 50% 120%, rgba(126, 160, 25, 0.16), rgba(0, 0, 0, 0) 62%),
+      linear-gradient(160deg, #22261A 0%, #13150E 52%, #080905 100%);
+  }
+  /* the same tape lines the icon carries, at feature-graphic scale */
+  .tape { position: absolute; inset: 0; opacity: 0.5;
+    background-image: repeating-linear-gradient(0deg, rgba(195,230,64,.045) 0 1px, rgba(0,0,0,0) 1px 26px); }
+  .grain { position: absolute; inset: 0; opacity: 0.08; mix-blend-mode: overlay;
+    background-image: repeating-radial-gradient(circle at 21% 39%, rgba(255,255,255,0.9) 0 0.6px, transparent 0.6px 3px),
+                      repeating-radial-gradient(circle at 67% 74%, rgba(255,255,255,0.7) 0 0.5px, transparent 0.5px 2.7px); }
+  .speck { position: absolute; border-radius: 50%; background: #DDF36E; }
+  svg.mark { position: absolute; left: 78px; top: 74px; width: 352px; height: 352px; }
+  .copy { position: absolute; left: 470px; top: 158px; width: 520px; }
+  h1 { margin: 0; font-size: 96px; line-height: 1; letter-spacing: -0.03em; font-weight: 700;
+       text-shadow: 0 8px 34px rgba(5, 7, 3, 0.6); }
+  p { margin: 22px 0 0 4px; font-size: 30px; line-height: 1.25; color: #C3E640; max-width: 480px; }
+  .rule { position: absolute; left: 474px; top: 140px; width: 74px; height: 5px; border-radius: 3px;
+          background: linear-gradient(90deg, #F4FCC8, #C3E640); }
+</style>
+</head>
+<body>
+  <div class="tape"></div>
+  <div class="grain"></div>
+  <div class="speck" style="left:596px;top:64px;width:4px;height:4px;opacity:.55"></div>
+  <div class="speck" style="left:884px;top:104px;width:3px;height:3px;opacity:.45"></div>
+  <div class="speck" style="left:742px;top:44px;width:2px;height:2px;opacity:.4"></div>
+  <div class="speck" style="left:952px;top:404px;width:3px;height:3px;opacity:.35"></div>
+  <div class="speck" style="left:44px;top:72px;width:3px;height:3px;opacity:.4"></div>
+
+  <svg class="mark" viewBox="18 18 72 72" aria-hidden="true">
+    <defs>
+      <linearGradient id="ringg" x1="0.1" y1="0" x2="0.9" y2="1">
+        <stop offset="0" stop-color="#C9EC46"/><stop offset="0.48" stop-color="#94BF1D"/><stop offset="1" stop-color="#5B7A0F"/>
+      </linearGradient>
+      <linearGradient id="waveg" x1="0" y1="0.1" x2="0.92" y2="0.95">
+        <stop offset="0" stop-color="#F4FCC8"/><stop offset="0.42" stop-color="#DDF36E"/><stop offset="1" stop-color="#B4DC2E"/>
+      </linearGradient>
+      <filter id="drop" filterUnits="userSpaceOnUse" x="0" y="0" width="108" height="108">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.3"/><feOffset dy="2.6" result="o"/>
+        <feFlood flood-color="#050703" flood-opacity="0.66"/><feComposite in2="o" operator="in"/>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="halo" filterUnits="userSpaceOnUse" x="0" y="0" width="108" height="108"><feGaussianBlur stdDeviation="3.4"/></filter>
+    </defs>
+    <circle cx="54" cy="54" r="26.5" fill="none" stroke="#7EA019" stroke-width="9" opacity="0.26" filter="url(#halo)"/>
+    <circle cx="54" cy="54" r="26.5" fill="none" stroke="url(#ringg)" stroke-width="7.6" filter="url(#drop)"/>
+    <path d="M33.6 35.2 A26.5 26.5 0 0 1 72.6 32.1" fill="none" stroke="#E6F79A" stroke-width="1.7" stroke-linecap="round" opacity="0.45"/>
+    <path d="M27.5 54 C34.4 54 33.1 41 40 41 C47.7 41 46.3 67 54 67 C61.2 67 59.8 41 67 41 C74.4 41 73.1 54 80.5 54"
+          fill="none" stroke="#C3E640" stroke-width="9.6" stroke-linecap="round" opacity="0.34" filter="url(#halo)"/>
+    <path d="M27.5 54 C34.4 54 33.1 41 40 41 C47.7 41 46.3 67 54 67 C61.2 67 59.8 41 67 41 C74.4 41 73.1 54 80.5 54"
+          fill="none" stroke="url(#waveg)" stroke-width="7.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#drop)"/>
+    <path d="M35.4 44.9 C36.9 42.5 38.3 41.7 40 41.7 C43.7 41.7 44.7 48.2 46.5 55.6"
+          fill="none" stroke="#FBFFE6" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+  </svg>
+
+  <div class="rule"></div>
+  <div class="copy">
+    <h1>Loopwright</h1>
+    <p>Hum it. Loop it. It is a song now.</p>
+  </div>
+</body>
+</html>

@@ -16,6 +16,7 @@ const App = (() => {
   let songSrc = null, songStart = 0, songDur = 0;
   let armedProject = null;      // the delete-confirm on a library card
   let taps = [];
+  let takeBusy = false;      // startTake has awaits in it; a second tap must not slip through
   let raf = 0;
   let lastBeat = -1;
   let lastPlaying = false;
@@ -43,6 +44,16 @@ const App = (() => {
   }
   const isNative = () => !!(window.Native && Native.isNative);
 
+  /* A thumb on a phone bounces. Anything that creates a thing rather than
+     toggling one asks this first, so one intended tap makes one thing. */
+  const lastFire = {};
+  function once(key, ms) {
+    const now = Date.now();
+    if (lastFire[key] && now - lastFire[key] < (ms || 450)) return false;
+    lastFire[key] = now;
+    return true;
+  }
+
   function sheet(id, on) {
     $(id).hidden = !on;
   }
@@ -69,43 +80,132 @@ const App = (() => {
            ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2);
   }
 
+  /* The signature. The ring is not a progress bar cut into pieces: it is the
+     waveform of the loop, bent until its ends meet, which is the launcher icon
+     drawn at screen size. Each layer owns an arc of it, and the wiggle inside
+     that arc is that layer's own material sampled round the loop, so a held
+     drone swells and a hat pattern reads as a comb. Muted layers keep their
+     shape at a quarter of the height rather than vanishing. */
+  const RING_R = 112;
+
+  /** A layer's energy round the loop, in `bins` samples, peak normalised. */
+  function envelope(layer, bins) {
+    const key = bins + '|' + (project.beats || 8) + '|' + (layer.src ? layer.src.length : 0) + '|' + layer.kind;
+    if (layer._env && layer._envk === key) return layer._env;
+    const out = new Float32Array(bins);
+    const beats = project.beats || 8;
+    const drum = layer.kind === 'drum';
+    (layer.src || []).forEach(e => {
+      const at = (((e.t % beats) + beats) % beats) / beats;
+      const wide = drum ? 0.028 : Math.max(0.035, Math.min(0.11, (e.d || 0.5) / (beats * 2)));
+      const v = Math.max(0.2, Math.min(1, e.v || 0.7));
+      for (let k = 0; k < bins; k++) {
+        let d = Math.abs(k / bins - at);
+        if (d > 0.5) d = 1 - d;
+        const g = Math.exp(-(d * d) / (2 * wide * wide));
+        if (g > 0.004) out[k] += v * g;
+      }
+    });
+    // one smoothing pass, so a comb of hits draws as a comb and not as aliasing
+    const sm = new Float32Array(bins);
+    for (let k = 0; k < bins; k++) {
+      sm[k] = (out[(k - 1 + bins) % bins] + 2 * out[k] + out[(k + 1) % bins]) / 4;
+    }
+    let m = 0;
+    for (let k = 0; k < bins; k++) if (sm[k] > m) m = sm[k];
+    // a gentle contrast curve, so a busy layer still shows its troughs and does
+    // not flatten into a plain circle once everything is normalised
+    if (m > 0) for (let k = 0; k < bins; k++) sm[k] = Math.pow(sm[k] / m, 1.6);
+    layer._env = sm; layer._envk = key;
+    return sm;
+  }
+
+  /** One layer's arc, drawn as its waveform, tapered into the gaps at each end. */
+  function segPath(a0, a1, R, amp, env) {
+    const n = Math.max(16, Math.round((a1 - a0) / 1.5));
+    let d = '';
+    for (let k = 0; k <= n; k++) {
+      const f = k / n;
+      const taper = Math.min(1, Math.min(f, 1 - f) * 6);
+      const e = env[Math.min(env.length - 1, Math.round(f * (env.length - 1)))];
+      const [x, y] = pt(a0 + (a1 - a0) * f, R + amp * e * taper);
+      d += (k ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    return d;
+  }
+
+  /* The empty ring is a waveform at rest: twenty small cycles round the circle
+     with their height swelling and falling, which is the same shape a recorded
+     layer draws and the same shape the launcher icon carries. */
+  function idlePath(R, amp) {
+    const steps = 420;
+    let d = '';
+    for (let k = 0; k <= steps; k++) {
+      const f = k / steps;
+      const swell = 0.34 + 0.42 * Math.pow(Math.sin(Math.PI * 2 * 2 * f + 1.1), 2) +
+                    0.24 * Math.pow(Math.sin(Math.PI * 2 * 3 * f), 2);
+      const [px, py] = pt(f * 360, R + amp * swell * Math.sin(Math.PI * 2 * 20 * f));
+      d += (k ? 'L' : 'M') + px.toFixed(1) + ' ' + py.toFixed(1);
+    }
+    return d + 'Z';
+  }
+
   function renderRing() {
     const sc = Store.current(project);
     const n = sc.layers.length;
-    const R = 127;
-    let s = '<circle cx="150" cy="150" r="' + R + '" class="seg seg-bg" stroke-width="9"/>';
-    const gap = n > 1 ? 7 : 6;
-    for (let i = 0; i < n; i++) {
-      const l = sc.layers[i];
-      const a0 = i * 360 / n + gap / 2;
-      const a1 = (i + 1) * 360 / n - gap / 2;
-      const cls = l.muted ? 'seg-off' : (l.kind === 'drum' ? 'seg-drum' : 'seg-on');
-      const w = l.muted ? 7 : 10 + Math.round(l.vol * 5);
-      s += '<path class="seg ' + cls + '" stroke-width="' + w + '" d="' + arcD(a0, a1, R) + '"/>';
-      s += '<path class="seg" stroke="transparent" stroke-width="34" data-layer="' + l.id +
-           '" d="' + arcD(a0, a1, R) + '"/>';
+    const R = RING_R;
+    let s = '';
+    if (!n) {
+      s += '<circle cx="150" cy="150" r="' + R + '" class="seg seg-bg" stroke-width="3" opacity="0.5"/>';
+      s += '<path class="seg seg-idle" stroke-width="7" d="' + idlePath(R, 15) + '"/>';
+    } else {
+      s += '<circle cx="150" cy="150" r="' + R + '" class="seg seg-bg" stroke-width="4" opacity="0.6"/>';
+      const gap = n > 1 ? 7 : 4;
+      for (let i = 0; i < n; i++) {
+        const l = sc.layers[i];
+        const a0 = i * 360 / n + gap / 2;
+        const a1 = (i + 1) * 360 / n - gap / 2;
+        const cls = l.muted ? 'seg-off' : 'seg-on';
+        const w = l.muted ? 5 : 8 + Math.round(l.vol * 4);
+        const amp = (l.muted ? 4 : 9 + l.vol * 7);
+        const d = segPath(a0, a1, R, amp, envelope(l, 96));
+        if (!l.muted) s += '<path class="seg seg-glow" stroke-width="' + (w + 4) + '" d="' + d + '"/>';
+        s += '<path class="seg ' + cls + '" stroke-width="' + w + '" d="' + d + '"/>';
+        s += '<path class="seg" stroke="transparent" stroke-width="40" data-layer="' + l.id +
+             '" d="' + arcD(a0, a1, R) + '"/>';
+      }
     }
-    s += '<path id="recArc" class="seg seg-on" stroke-width="3" stroke-dasharray="2 5" d="" opacity="0.85"/>';
-    s += '<g id="phg"><line class="playhead" x1="150" y1="' + (150 - R - 11) +
-         '" x2="150" y2="' + (150 - R + 11) + '" opacity="0"/></g>';
+    s += '<path id="recArc" class="seg seg-on" stroke-width="3" stroke-dasharray="2 6" d="" opacity="0.9"/>';
+    s += '<g id="phg"><line class="playhead" x1="150" y1="' + (150 - R - 15) +
+         '" x2="150" y2="' + (150 - R + 15) + '" opacity="0"/></g>';
     $('#ring').innerHTML = s;
     $$('#ring [data-layer]').forEach(el => bindSegment(el, el.getAttribute('data-layer')));
   }
 
-  function bindSegment(el, id) {
-    let timer = 0, moved = false, long = false;
+
+  /* Tap to mute, hold to open the layer. The short tap is handled on `click`
+     rather than on pointerup so that a keyboard, an accessibility service and a
+     plain synthetic click all reach it; the hold sets a flag that swallows the
+     click that follows it. */
+  function bindHold(el, id) {
+    let timer = 0, swallow = false, startX = 0, startY = 0;
     el.addEventListener('pointerdown', e => {
-      moved = false; long = false;
-      timer = setTimeout(() => { long = true; buzz(14, 90); openLayerSheet(id); }, 450);
-      e.preventDefault();
+      swallow = false; startX = e.clientX; startY = e.clientY;
+      timer = setTimeout(() => { swallow = true; buzz(14, 90); openLayerSheet(id); }, 450);
     });
-    el.addEventListener('pointermove', () => { moved = true; });
-    el.addEventListener('pointerup', () => {
-      clearTimeout(timer);
-      if (!long && !moved) toggleMute(id);
+    el.addEventListener('pointermove', e => {
+      if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) {
+        clearTimeout(timer); swallow = true;
+      }
     });
-    el.addEventListener('pointercancel', () => clearTimeout(timer));
+    el.addEventListener('pointerup', () => clearTimeout(timer));
+    el.addEventListener('pointercancel', () => { clearTimeout(timer); swallow = true; });
+    el.addEventListener('click', () => {
+      if (swallow) { swallow = false; return; }
+      toggleMute(id);
+    });
   }
+  const bindSegment = bindHold;
 
   /* ---------------------------------------------------------- layer chips */
 
@@ -113,30 +213,21 @@ const App = (() => {
     const sc = Store.current(project);
     const box = $('#layerStrip');
     if (!sc.layers.length) {
-      box.innerHTML = '<p class="emptylayers">No layers yet. The pad is waiting.</p>';
+      box.innerHTML = '<p class="emptylayers">No layers yet. The ring fills as you record.</p>';
       return;
     }
     box.innerHTML = sc.layers.map(l => {
       const v = Voices.get(l.voice);
-      const cls = 'lchip' + (l.muted ? ' off' : '') + (l.kind === 'drum' ? ' drum' : '');
-      const count = l.kind === 'drum' ? l.src.length + ' hits' : l.src.length + ' notes';
-      return '<button class="' + cls + '" data-id="' + l.id + '"><i></i>' +
-             v.name + ' <small>' + count + '</small></button>';
+      const drum = l.kind === 'drum';
+      const cls = 'lchip' + (l.muted ? ' off' : '');
+      const count = drum ? l.src.length + ' hits' : l.src.length + ' notes';
+      const wave = drum
+        ? '<svg viewBox="0 0 15 11"><path d="M2 1.6 V9.4 M7.5 3.6 V7.4 M13 0.9 V10.1"/></svg>'
+        : '<svg viewBox="0 0 15 11"><path d="M1 5.5 C2.9 5.5 2.6 1.4 4.6 1.4 C7 1.4 6.6 9.6 9 9.6 C11 9.6 10.7 5.5 12.6 5.5 L14 5.5"/></svg>';
+      return '<button class="' + cls + '" data-id="' + l.id + '">' + wave +
+             escapeHtml(v.name) + ' <small>' + count + '</small></button>';
     }).join('');
-    Array.prototype.forEach.call(box.children, el => {
-      const id = el.getAttribute('data-id');
-      let timer = 0, long = false;
-      el.addEventListener('pointerdown', () => {
-        long = false;
-        timer = setTimeout(() => { long = true; buzz(14, 90); openLayerSheet(id); }, 450);
-      });
-      el.addEventListener('pointerup', () => {
-        clearTimeout(timer);
-        if (!long) toggleMute(id);
-      });
-      el.addEventListener('pointerleave', () => clearTimeout(timer));
-      el.addEventListener('pointercancel', () => clearTimeout(timer));
-    });
+    Array.prototype.forEach.call(box.children, el => bindHold(el, el.getAttribute('data-id')));
   }
 
   function toggleMute(id) {
@@ -153,12 +244,43 @@ const App = (() => {
 
   /* --------------------------------------------------------- voice shelf */
 
+  /* Nine voices, nine drawn waveforms. A shelf of identical tiles tells you
+     nothing; these say plucked, held, breathy or struck before you hear them. */
+  const VOICE_SHAPE = {
+    felt:    [0.16, 0.66, 0.92, 0.56, 0.3, 0.72, 0.95, 0.5, 0.24, 0.42, 0.2],
+    dust:    [0.42, 0.54, 0.44, 0.62, 0.5, 0.68, 0.52, 0.6, 0.46, 0.56, 0.44],
+    upright: [0.08, 0.34, 0.82, 1, 0.78, 0.32, 0.1, 0.4, 0.86, 0.5, 0.14],
+    brass:   [0.18, 0.7, 0.88, 0.9, 0.88, 0.86, 0.88, 0.8, 0.58, 0.28, 0.12],
+    choir:   [0.1, 0.28, 0.54, 0.76, 0.9, 0.94, 0.86, 0.66, 0.42, 0.22, 0.08],
+    nylon:   [0.96, 0.6, 0.36, 0.2, 0.86, 0.52, 0.3, 0.16, 0.72, 0.4, 0.2],
+    glass:   [0.94, 0.26, 0.12, 0.84, 0.22, 0.1, 0.72, 0.18, 0.08, 0.56, 0.14],
+    kit:     [1, 0.2, 0.56, 0.18, 0.82, 0.24, 0.5, 0.2, 0.96, 0.28, 0.46],
+    card:    [0.82, 0.3, 0.44, 0.24, 0.64, 0.34, 0.4, 0.22, 0.74, 0.36, 0.3]
+  };
+  function voiceTex(id, drum) {
+    const a = VOICE_SHAPE[id] || VOICE_SHAPE.felt;
+    const W = 84, H = 15, mid = H / 2, span = (W - 4) / (a.length - 1);
+    let d = '';
+    for (let i = 0; i < a.length; i++) {
+      const x = +(2 + i * span).toFixed(1);
+      if (drum) {
+        const h = a[i] * (mid - 1.1);
+        d += 'M' + x + ' ' + (mid - h).toFixed(1) + 'L' + x + ' ' + (mid + h).toFixed(1) + ' ';
+      } else {
+        d += (i ? 'L' : 'M') + x + ' ' + (mid - (a[i] - 0.5) * (H - 3)).toFixed(1) + ' ';
+      }
+    }
+    return '<svg class="tex" viewBox="0 0 84 15" aria-hidden="true"><path d="' + d.trim() + '"/></svg>';
+  }
+  function voiceTile(v, on) {
+    return '<button class="vtile' + (on ? ' is-on' : '') + '" data-v="' + v.id + '">' +
+      voiceTex(v.id, v.kind === 'drum') + '<b>' + escapeHtml(v.name) + '</b>' +
+      '<span class="blurb">' + escapeHtml(v.blurb) + '</span></button>';
+  }
+
   function renderShelf() {
     const cur = Store.settings().voice;
-    $('#shelf').innerHTML = Voices.all().map(v =>
-      '<button class="vtile' + (v.id === cur ? ' is-on' : '') + '" data-v="' + v.id + '">' +
-      '<span class="tex"></span><b>' + v.name + '</b><span>' + v.blurb + '</span></button>'
-    ).join('');
+    $('#shelf').innerHTML = Voices.all().map(v => voiceTile(v, v.id === cur)).join('');
     Array.prototype.forEach.call($('#shelf').children, el => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-v');
@@ -219,11 +341,13 @@ const App = (() => {
     const row = $('#sceneRow');
     row.innerHTML = project.scenes.map(s =>
       '<button class="scenechip' + (s.id === project.openScene ? ' is-on' : '') +
-      '" data-s="' + s.id + '">Scene ' + s.name + '</button>'
-    ).join('') + '<button class="scenechip add" data-add="1">New scene</button>';
+      '" data-s="' + s.id + '">Scene ' + escapeHtml(s.name) + '</button>'
+    ).join('') + '<button class="scenechip add" data-add="1">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 V18 M6 12 H18"/></svg>New scene</button>';
     Array.prototype.forEach.call(row.children, el => {
       el.addEventListener('click', () => {
         if (el.getAttribute('data-add')) {
+          if (!once('scene', 500)) return;
           if (project.scenes.length >= 8) { toast('Eight scenes is plenty for one song.'); return; }
           Store.addScene(project, null);
           Engine.stop();
@@ -258,7 +382,17 @@ const App = (() => {
     }
   }
 
+  /* startTake waits on the loop starting and then on the microphone, and a
+     second tap that arrives inside either await used to arm a second take on top
+     of the first. The flag closes that window; cancelling still works, because
+     onPadTap only reaches here while the pad is idle. */
   async function startTake() {
+    if (takeBusy) return;
+    takeBusy = true;
+    try { await runTake(); } finally { takeBusy = false; }
+  }
+
+  async function runTake() {
     const sc = Store.current(project);
     if (sc.layers.length >= 8) {
       toast('Eight layers is the most a scene holds. Copy the scene, or remove one.');
@@ -319,6 +453,7 @@ const App = (() => {
       note('That was too short to build a loop from. Give it a few seconds.', true);
       return;
     }
+    const capped = first && res.duration >= Engine.firstMax() - 0.6;
     const heard = drum ? DSP.hearDrums(res.samples, res.sr) : DSP.hearMelody(res.samples, res.sr);
     const events = drum ? heard.hits : heard.notes;
     if (!events.length) {
@@ -379,9 +514,12 @@ const App = (() => {
     } else {
       await Engine.refresh(project, layer, sc.layers.length - 1);
     }
-    note(drum
-      ? events.length + ' hits, snapped to the groove you played.'
-      : events.length + ' notes in ' + Store.keyLong(project) + '.');
+    note(capped
+      ? 'That is as long as a first loop goes. Loopwright closed it for you at ' +
+        Engine.firstMax() + ' seconds.'
+      : (drum
+        ? events.length + ' hits, snapped to the groove you played.'
+        : events.length + ' notes in ' + Store.keyLong(project) + '.'), capped);
 
     if (Store.guide() === 0) advanceGuide(1);
     else if (Store.guide() === 1) advanceGuide(2);
@@ -427,10 +565,7 @@ const App = (() => {
     $('#lsAb').checked = !!l.ab;
     $('#lsAbField').hidden = !l.hum;
     const pool = drum ? Voices.drums() : Voices.melodic();
-    $('#lsVoices').innerHTML = pool.map(v =>
-      '<button class="vtile' + (v.id === l.voice ? ' is-on' : '') + '" data-v="' + v.id + '">' +
-      '<span class="tex"></span><b>' + v.name + '</b><span>' + v.blurb + '</span></button>'
-    ).join('');
+    $('#lsVoices').innerHTML = pool.map(v => voiceTile(v, v.id === l.voice)).join('');
     Array.prototype.forEach.call($('#lsVoices').children, el => {
       el.addEventListener('click', () => {
         const vid = el.getAttribute('data-v');
@@ -581,6 +716,23 @@ const App = (() => {
     setTimeout(() => $('#nsInput').focus(), 60);
   }
 
+  /* One stroke width, one corner language, everywhere a glyph used to be. */
+  const ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>';
+  const ICON_MINUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12 H18"/></svg>';
+  const ICON_PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 V18 M6 12 H18"/></svg>';
+
+  /* Drawn, not described: three scene blocks waiting to be lined up, the last
+     one still empty, which is exactly what the strip does when you fill it. */
+  const STRIP_ART =
+    '<div class="stripempty"><svg viewBox="0 0 92 62" aria-hidden="true" fill="none" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' +
+    '<rect x="2" y="13" width="24" height="36" rx="7" stroke="var(--accent)" stroke-width="2"/>' +
+    '<rect x="32" y="13" width="24" height="36" rx="7" stroke="var(--accent)" stroke-width="2" opacity=".55"/>' +
+    '<rect x="62" y="13" width="24" height="36" rx="7" stroke="#5C6844" stroke-width="2" stroke-dasharray="4 5"/>' +
+    '<path d="M7 31 C9 31 8.7 24 11 24 C13.7 24 13.3 38 16 38 C18.3 38 18 31 21 31" stroke="var(--accent)" stroke-width="2"/>' +
+    '<path d="M37 31 C39 31 38.7 26 41 26 C43.7 26 43.3 36 46 36 C48.3 36 48 31 51 31" stroke="var(--accent)" stroke-width="2" opacity=".55"/>' +
+    '</svg>';
+
   /* ------------------------------------------------------------- arrange */
 
   function renderArrange() {
@@ -588,17 +740,18 @@ const App = (() => {
       ' \u00b7 ' + project.beats + ' beats a loop';
     const strip = $('#strip');
     if (!project.strip.length) {
-      strip.innerHTML = '<p class="stripempty">Nothing lined up yet. Tap a scene below to put it in the song.</p>';
+      strip.innerHTML = STRIP_ART +
+        '<p>Nothing lined up yet. Tap a scene below to put it in the song.</p></div>';
     } else {
       strip.innerHTML = project.strip.map((b, i) => {
         const sc = Store.scene(project, b.scene);
-        return '<div class="block" data-i="' + i + '">' +
-          '<button class="kill" data-kill="' + i + '" aria-label="Remove this block">\u00d7</button>' +
-          '<b>' + (sc ? sc.name : '?') + '</b>' +
+        return '<div class="block" data-i="' + i + '" style="--i:' + i + '">' +
+          '<button class="kill" data-kill="' + i + '" aria-label="Remove this block">' + ICON_X + '</button>' +
+          '<b>' + (sc ? escapeHtml(sc.name) : '?') + '</b>' +
           '<small>' + (sc ? sc.layers.length : 0) + ' layers</small>' +
-          '<div class="reps"><button data-dec="' + i + '" aria-label="Fewer repeats">&minus;</button>' +
+          '<div class="reps"><button data-dec="' + i + '" aria-label="Fewer repeats">' + ICON_MINUS + '</button>' +
           '<span>x' + b.repeats + '</span>' +
-          '<button data-inc="' + i + '" aria-label="More repeats">+</button></div></div>';
+          '<button data-inc="' + i + '" aria-label="More repeats">' + ICON_PLUS + '</button></div></div>';
       }).join('');
       wireStrip();
     }
@@ -606,7 +759,7 @@ const App = (() => {
       ? 'Press and hold a block to drag it somewhere else.'
       : 'A verse, a chorus, the verse again. Two scenes are enough for a song.';
     $('#sceneList').innerHTML = project.scenes.map(s =>
-      '<button class="scenebtn" data-s="' + s.id + '">Scene ' + s.name +
+      '<button class="scenebtn" data-s="' + s.id + '">Scene ' + escapeHtml(s.name) +
       ' <small>' + s.layers.length + ' layers</small></button>'
     ).join('');
     Array.prototype.forEach.call($('#sceneList').children, el => {
@@ -617,9 +770,8 @@ const App = (() => {
         if (Store.guide() === 3) advanceGuide(4);
       });
     });
-    $('#exportNote').textContent = isNative()
-      ? 'Files land in the Downloads folder on this phone.'
-      : 'Files download through the browser.';
+    exportErr('');
+    songErr('');
   }
 
   function wireStrip() {
@@ -702,7 +854,10 @@ const App = (() => {
   async function playSong() {
     if (songSrc) { stopSong(); return; }
     const layers = Store.layerCount(project);
-    if (!layers) { toast('There is nothing recorded yet.'); return; }
+    if (!layers) { songErr('There is nothing recorded yet. Hum something on the Pad first.'); return; }
+    const bad = tooLong(false);
+    if (bad) { songErr(bad); return; }
+    songErr('');
     Engine.stop();
     busy(true, 'Rendering the song');
     try {
@@ -720,7 +875,7 @@ const App = (() => {
       $('#songProg').hidden = false;
     } catch (e) {
       busy(false);
-      toast('The song could not be rendered on this device.');
+      songErr('The song could not be rendered on this device.');
     }
   }
   function stopSong() {
@@ -737,19 +892,48 @@ const App = (() => {
     return (s || 'loopwright').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'loopwright';
   }
 
-  /* The bridge to the phone carries the file as one base64 string, so a very long
-     song has to be refused rather than risk taking the app down with it. Two and a
-     bit minutes of stereo audio is the line. */
+  /* One second of the mix is 176 kilobytes of 16 bit stereo, and the whole file
+     crosses the bridge to the phone as a single base64 string. Both limits are
+     checked from the arrangement's length before anything is rendered, because
+     finding out afterwards costs a minute of work and, on a long strip, an
+     offline context big enough to take the app down. */
+  const WAV_BYTES_SEC = 44100 * 2 * 2;
   const BRIDGE_LIMIT = 24 * 1024 * 1024;
+  const RENDER_LIMIT = 300;
+
+  function tooLong(toFile) {
+    const sec = Store.songSeconds(project);
+    if (sec > RENDER_LIMIT) {
+      return 'That arrangement runs ' + Store.clock(sec) +
+        '. Loopwright renders up to five minutes at once, so take some repeats off in the strip.';
+    }
+    if (toFile && isNative() && sec * WAV_BYTES_SEC > BRIDGE_LIMIT) {
+      return 'A WAV that long is more than this phone will take in one file. Keep the song under ' +
+        Store.clock(BRIDGE_LIMIT / WAV_BYTES_SEC) + ' and it will save.';
+    }
+    return '';
+  }
+  function songErr(text) {
+    const el = $('#songErr');
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
+  function exportErr(text) {
+    const el = $('#exportNote');
+    el.classList.toggle('warn', !!text);
+    el.textContent = text || (isNative()
+      ? 'Files land in the Downloads folder on this phone.'
+      : 'Files download through the browser.');
+  }
 
   function deliver(name, bytes, share) {
     if (window.Native && Native.saveFile) {
       if (bytes.byteLength > BRIDGE_LIMIT) {
-        toast('That song is too long to write out in one file. Fewer repeats in Arrange will bring it down.', 5200);
+        exportErr('That song is too long to write out in one file. Fewer repeats in Arrange will bring it down.');
         return false;
       }
       const uri = Native.saveFile(name, 'audio/wav', Engine.base64(bytes));
-      if (!uri) { toast('This phone would not let the file be written.'); return false; }
+      if (!uri) { exportErr('This phone would not let the file be written.'); return false; }
       if (share && Native.shareUri) Native.shareUri(uri, 'audio/wav');
       return true;
     }
@@ -763,7 +947,10 @@ const App = (() => {
   }
 
   async function exportMix(share) {
-    if (!Store.layerCount(project)) { toast('There is nothing recorded yet.'); return; }
+    if (!Store.layerCount(project)) { exportErr('There is nothing recorded yet. Hum something on the Pad first.'); return; }
+    const bad = tooLong(true);
+    if (bad) { exportErr(bad); return; }
+    exportErr('');
     stopSong(); Engine.stop();
     busy(true, 'Bouncing the mix');
     try {
@@ -774,7 +961,7 @@ const App = (() => {
         toast(isNative() ? 'Saved to Downloads.' : 'Downloaded.');
         Engine.chime(project);
       }
-    } catch (e) { busy(false); toast('The mix could not be rendered.'); }
+    } catch (e) { busy(false); exportErr('The mix could not be rendered on this device.'); }
   }
 
   async function exportStems() {
@@ -782,7 +969,10 @@ const App = (() => {
     // two scenes has two sets of stems and unlabelled numbers help nobody.
     const all = [];
     project.scenes.forEach(sc => sc.layers.forEach((l, k) => all.push({ l: l, tag: sc.name.toLowerCase() + (k + 1) })));
-    if (!all.length) { toast('There is nothing recorded yet.'); return; }
+    if (!all.length) { exportErr('There is nothing recorded yet. Hum something on the Pad first.'); return; }
+    const bad = tooLong(true);
+    if (bad) { exportErr(bad); return; }
+    exportErr('');
     stopSong(); Engine.stop();
     const base = safeName(Store.title(project));
     let n = 0;
@@ -796,38 +986,60 @@ const App = (() => {
       } catch (e) {}
     }
     busy(false);
-    toast(n ? 'Saved ' + n + ' stem files.' : 'The stems could not be rendered.');
+    if (n) toast('Saved ' + n + ' stem files.');
+    else exportErr('The stems could not be rendered on this device.');
   }
 
   /* ------------------------------------------------------------- library */
 
+  /* The card thumbnail is the same ring, small: one arc per layer, so a library
+     of songs reads as a shelf of loops rather than a list of file names. */
   function thumb(p) {
     const layers = Store.layerCount(p);
     const n = Math.max(1, Math.min(8, layers));
-    let s = '<svg class="thumb" viewBox="0 0 46 46" aria-hidden="true">';
-    s += '<circle cx="23" cy="23" r="17" fill="none" stroke="#2C231C" stroke-width="4"/>';
+    const rad = d => (d - 90) * Math.PI / 180;
+    const at = (deg, r) => [(25 + r * Math.cos(rad(deg))).toFixed(1), (25 + r * Math.sin(rad(deg))).toFixed(1)];
+    let s = '<svg class="thumb" viewBox="0 0 50 50" aria-hidden="true">';
+    s += '<circle cx="25" cy="25" r="17" fill="none" stroke="#2B3222" stroke-width="3"/>';
+    if (!layers) {
+      s += '<path d="M8 25 C11 25 10.4 18 13.5 18 C17.2 18 16.6 32 20.5 32 C24 32 23.4 18 27 18 C30.7 18 30 25 34 25" ' +
+           'fill="none" stroke="#5C6844" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
     for (let i = 0; i < n && layers; i++) {
-      const a0 = i * 360 / n + 8, a1 = (i + 1) * 360 / n - 8;
-      const rad = d => (d - 90) * Math.PI / 180;
-      const x0 = 23 + 17 * Math.cos(rad(a0)), y0 = 23 + 17 * Math.sin(rad(a0));
-      const x1 = 23 + 17 * Math.cos(rad(a1)), y1 = 23 + 17 * Math.sin(rad(a1));
-      s += '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A17 17 0 ' +
-           ((a1 - a0) > 180 ? 1 : 0) + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
-           '" fill="none" stroke="#EE8B3F" stroke-width="4" stroke-linecap="round"/>';
+      const a0 = i * 360 / n + (n > 1 ? 9 : 3), a1 = (i + 1) * 360 / n - (n > 1 ? 9 : 3);
+      const [x0, y0] = at(a0, 17), [x1, y1] = at(a1, 17);
+      s += '<path d="M' + x0 + ' ' + y0 + ' A17 17 0 ' + ((a1 - a0) > 180 ? 1 : 0) + ' 1 ' + x1 + ' ' + y1 +
+           '" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>';
     }
     s += '</svg>';
     return s;
   }
 
+  /* The hum going in on the left, bending round into the closed loop that comes
+     out: the app in one drawing, and the same two shapes as the launcher icon. */
+  const LIB_ART =
+    '<div class="blank"><svg viewBox="0 0 168 116" aria-hidden="true" fill="none" ' +
+    'stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="108" cy="58" r="43" stroke="#2B3222" stroke-width="2" stroke-dasharray="3 7"/>' +
+    '<path d="M6 58 C16 58 14 36 24 36 C36 36 33 82 45 82 C55 82 53 58 63 58" stroke="var(--accent-deep)" stroke-width="4"/>' +
+    '<circle cx="108" cy="58" r="30" stroke="var(--accent-deep)" stroke-width="7"/>' +
+    '<path d="M78 58 C85.8 58 84.3 43 92 43 C100.7 43 99.1 73 108 73 C116.1 73 114.5 43 122 43 C130.4 43 128.9 58 138 58" ' +
+    'stroke="var(--accent)" stroke-width="7"/>' +
+    '</svg><p>Nothing here yet. Hum four seconds of anything and Loopwright will play it back to you.</p></div>';
+
   function renderLibrary() {
-    const list = Store.projects();
-    $('#libLede').textContent = list.length
-      ? list.length + (list.length === 1 ? ' song lives on this phone.' : ' songs live on this phone.')
-      : 'Nothing here yet. Start a song and hum into it.';
-    $('#cards').innerHTML = list.map(p => {
+    const list = Store.projects().filter(p => Store.layerCount(p) || p.id === project.id);
+    const recorded = list.filter(p => Store.layerCount(p));
+    // an untitled, empty song is always waiting on the Pad; counting it as a song
+    // on this screen would be a lie, and a card for it would be a row of nothing
+    $('#libLede').textContent = recorded.length
+      ? recorded.length + (recorded.length === 1 ? ' song lives on this phone.' : ' songs live on this phone.')
+      : 'Nothing recorded yet. The pad is where songs start.';
+    if (!recorded.length) { $('#cards').innerHTML = LIB_ART; return; }
+    $('#cards').innerHTML = list.map((p, i) => {
       const sub = [Store.keyName(p), Math.round(p.bpm) + ' bpm',
         Store.layerCount(p) + ' layers', Store.dayLabel(p.updated)].join(' \u00b7 ');
-      return '<div class="card' + (armedProject === p.id ? ' armed' : '') + '" data-p="' + p.id + '">' +
+      return '<div class="card' + (armedProject === p.id ? ' armed' : '') + '" data-p="' + p.id + '" style="--i:' + i + '">' +
         thumb(p) +
         '<div class="body"><b>' + escapeHtml(Store.title(p)) + '</b><span>' + sub + '</span></div>' +
         '<button class="del" data-del="' + p.id + '" aria-label="Delete this song">' +
@@ -851,11 +1063,12 @@ const App = (() => {
       }
       armedProject = null;
       const wasOpen = project && project.id === id;
-      Engine.stop();
+      Engine.stop(); stopSong();
       Store.remove(id);
       if (wasOpen) {
-        const next = Store.projects()[0];
-        project = next || Store.create();
+        Engine.dropCache();
+        project = Store.projects()[0] || Store.create();
+        Store.open(project.id);
       }
       renderLibrary(); renderPad();
       toast('Deleted.');
@@ -871,6 +1084,8 @@ const App = (() => {
     const p = Store.find(id);
     if (!p) return;
     Engine.stop(); stopSong();
+    // rendered loops are megabytes each; the last song's are of no use to this one
+    Engine.dropCache();
     project = p;
     Store.open(id);
     setView('pad');
@@ -905,10 +1120,17 @@ const App = (() => {
   /* --------------------------------------------------------------- views */
 
   function setView(v) {
+    const changed = view !== v;
     view = v;
     $('#v-pad').hidden = v !== 'pad';
     $('#v-arrange').hidden = v !== 'arrange';
     $('#v-library').hidden = v !== 'library';
+    if (changed) {
+      const el = $('#v-' + v);
+      el.classList.remove('enter');
+      void el.offsetWidth;
+      el.classList.add('enter');
+    }
     $$('#tabs .tab').forEach(t => t.classList.toggle('is-on', t.getAttribute('data-view') === v));
     if (v !== 'arrange') stopSong();
     if (v === 'arrange') renderArrange();
@@ -987,7 +1209,9 @@ const App = (() => {
       renderPad();
       toast('Layer removed.');
     });
+    // one deliberate tap makes one scene; a fumbled double tap used to make two
     $('#btnScene').addEventListener('click', () => {
+      if (!once('scene', 500)) return;
       if (project.scenes.length >= 8) { toast('Eight scenes is plenty for one song.'); return; }
       const sc = Store.current(project);
       Store.addScene(project, sc);
@@ -1029,7 +1253,9 @@ const App = (() => {
     }
 
     $('#newSong').addEventListener('click', () => {
+      if (!once('new', 600)) return;
       Engine.stop(); stopSong();
+      Engine.dropCache();
       project = Store.create();
       setView('pad');
       toast('New song. Hum something.');
@@ -1066,6 +1292,7 @@ const App = (() => {
       }
       eraseArmed = false;
       Engine.stop(); stopSong();
+      Engine.dropCache();
       Store.eraseAll();
       project = Store.create();
       b.textContent = 'Erase everything';
@@ -1074,7 +1301,7 @@ const App = (() => {
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) onPause();
+      if (document.hidden) onPause(); else onResume();
     });
   }
 
@@ -1105,9 +1332,16 @@ const App = (() => {
     Engine.stop();
     stopSong();
     Engine.releaseMic();
+    busy(false);
     padState = 'idle';
+    takeBusy = false;
+    // the audio clock keeps running and keeps the radio warm otherwise
+    Engine.suspend();
   }
-  function onResume() { }
+  function onResume() {
+    Engine.ready();
+    if (view === 'pad') renderPad();
+  }
 
   /* ------------------------------------------------------------------ go */
 
@@ -1115,6 +1349,10 @@ const App = (() => {
     project = Store.find(Store.lastOpen()) || Store.projects()[0] || Store.create();
     Store.open(project.id);
     wire();
+    $('#introMark').innerHTML =
+      '<circle cx="54" cy="54" r="26.5" fill="none" stroke="var(--accent-deep)" stroke-width="7.4"/>' +
+      '<path d="M27.5 54 C34.4 54 33.1 41 40 41 C47.7 41 46.3 67 54 67 C61.2 67 59.8 41 67 41 C74.4 41 73.1 54 80.5 54" ' +
+      'fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>';
     $('#topbar').hidden = false;
     $('#tabs').hidden = false;
     setView('pad');

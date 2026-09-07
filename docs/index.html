@@ -13,16 +13,19 @@
 <style>
   :root {
     color-scheme: dark;
-    --bg: #17120F; --stage: #1E1815; --surface: #241D18; --surface-2: #2E251E;
-    --fg: #F6EEE5; --muted: #B09E8F; --dim: #9A8B7B; --hair: #3B2F27;
-    --accent: #EE8B3F; --ink: #1A120B;
+    --bg: #12140E; --stage: #191C13; --surface: #20241A; --surface-2: #2A2F20;
+    --fg: #F2F6E6; --muted: #A9B295; --dim: #8B9578; --hair: #333A28;
+    --accent: #C3E640; --accent-deep: #7EA019; --ink: #131807;
     --ui: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
     --num: "Space Grotesk", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--ui);
-         font-size: 18px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  body { margin: 0; color: var(--fg); font-family: var(--ui);
+         font-size: 18px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+         background:
+           radial-gradient(70% 42% at 50% 0%, rgba(195, 230, 64, .10), rgba(195, 230, 64, 0) 62%),
+           var(--bg); background-attachment: fixed; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
   a { color: var(--accent); }
   img.shot { width: 100%; height: auto; display: block; border: 1px solid var(--hair);
@@ -32,7 +35,8 @@
   .eyebrow { font-size: 13px; letter-spacing: .18em; text-transform: uppercase;
              color: var(--accent); margin: 0 0 16px; font-weight: 700; }
 
-  .cta { display: inline-block; background: var(--accent); color: var(--ink); text-decoration: none;
+  .cta { display: inline-block; background: linear-gradient(180deg, #DEF57C, var(--accent));
+         color: var(--ink); text-decoration: none; box-shadow: 0 8px 26px rgba(126, 160, 25, .3);
          padding: 15px 30px; border-radius: 13px; font-size: 17px; font-weight: 700;
          border: 1px solid var(--accent); transition: transform .15s ease; }
   .cta:active { transform: translateY(1px); }
@@ -59,7 +63,7 @@
   .compare > .wrap > p.sub { color: var(--muted); max-width: 52ch; margin: 0 0 52px; }
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
   .pane { background: var(--stage); border: 1px solid var(--hair); border-radius: 20px; padding: 34px 32px 38px; }
-  .pane.lit { border-color: rgba(238,139,63,.4); background: linear-gradient(180deg, #241a12, #1E1815); }
+  .pane.lit { border-color: rgba(195,230,64,.4); background: linear-gradient(180deg, #232817, #191C13); }
   .pane .who { font-family: var(--num); font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
                color: var(--dim); margin: 0 0 18px; }
   .pane.lit .who { color: var(--accent); }
@@ -89,7 +93,7 @@
   .v { background: var(--stage); padding: 26px 24px 28px; }
   .v i { display: block; width: 26px; height: 3px; border-radius: 2px; background: var(--accent);
          margin-bottom: 16px; font-style: normal; }
-  .v.drum i { background: #F0B67C; width: 14px; }
+  .v.drum i { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 8px); }
   .v b { display: block; font-size: 19px; letter-spacing: -0.015em; margin-bottom: 5px; }
   .v span { color: var(--muted); font-size: 16px; }
 
@@ -103,7 +107,7 @@
   .blocks { display: flex; gap: 8px; margin: 34px 0 0; flex-wrap: wrap; }
   .blk { font-family: var(--num); font-weight: 700; font-size: 17px; background: var(--surface);
          border: 1px solid var(--hair); border-radius: 11px; padding: 12px 18px; color: var(--fg); }
-  .blk.b { background: rgba(238,139,63,.14); border-color: rgba(238,139,63,.4); color: var(--accent); }
+  .blk.b { background: rgba(195,230,64,.14); border-color: rgba(195,230,64,.4); color: var(--accent); }
 
   /* 6. plain facts */
   .facts { padding: 96px 0; border-top: 1px solid var(--hair); }
@@ -148,13 +152,9 @@
   <nav>
     <span class="mark">
       <svg viewBox="0 0 108 108" aria-hidden="true">
-        <g fill="none" stroke-width="12" stroke="#F6EEE5">
-          <path d="M 24.2 50.3 A 30 30 0 0 1 50.3 24.2"/>
-          <path d="M 57.7 24.2 A 30 30 0 0 1 83.8 50.3"/>
-          <path d="M 50.3 83.8 A 30 30 0 0 1 24.2 57.7"/>
-        </g>
-        <path d="M 83.8 57.7 A 30 30 0 0 1 57.7 83.8" fill="none" stroke="#EE8B3F" stroke-width="14"/>
-        <circle cx="54" cy="54" r="10" fill="#EE8B3F"/>
+        <circle cx="54" cy="54" r="26.5" fill="none" stroke="#7EA019" stroke-width="7.4"/>
+        <path d="M27.5 54 C34.4 54 33.1 41 40 41 C47.7 41 46.3 67 54 67 C61.2 67 59.8 41 67 41 C74.4 41 73.1 54 80.5 54"
+              fill="none" stroke="#C3E640" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       Loopwright
     </span>
@@ -170,10 +170,11 @@
     <div>
       <h1>The song in your head, out loud.</h1>
       <p class="lede">Hum a melody and it comes back as a felt piano. Say boots and cats and it comes back as drums. Stack the loops, drop them in and out while it plays, and you have written something.</p>
+      <p class="lede" style="font-size:17px;margin-bottom:28px">The ring around the pad is your loop drawn as a waveform. Every layer you record takes a slice of it.</p>
       <a class="cta" href="play/index.html">Play it in your browser</a>
       <p class="under">Free. No account, no adverts, no subscription. Works with the radio off.</p>
     </div>
-    <img class="shot" src="shots/01-pad.png" alt="The Loopwright pad with four glowing layer segments around it, in F minor at 96 beats a minute">
+    <img class="shot" src="shots/01-pad.png" alt="The Loopwright pad, ringed by a chartreuse waveform cut into four layer segments, in F minor at 96 beats a minute">
   </header>
 </div>
 
@@ -201,7 +202,7 @@
 <!-- 3 -->
 <div class="wrap">
   <section class="pedal" id="how">
-    <img class="shot" src="shots/02-recording.png" alt="The pad glowing warm while a take records, with a dashed arc showing how far round the loop has gone">
+    <img class="shot" src="shots/02-recording.png" alt="The pad glowing chartreuse through a count-in, with the number five in the middle and the loop waveform around it">
     <div>
       <p class="eyebrow">The loop pedal, in a phone</p>
       <h2>One pad. Tap, hum, tap.</h2>
@@ -276,7 +277,7 @@
         <figcaption>Any layer, re-voiced with one tap. The compare toggle plays your own recording in its place.</figcaption></figure>
       <figure><img class="shot" src="shots/06-key.png" alt="The tempo and key sheet with a large tempo readout and a grid of twelve keys">
         <figcaption>The key and the tempo are worked out from your first take. Disagree with either of them here.</figcaption></figure>
-      <figure><img class="shot" src="shots/05-library.png" alt="The library listing four songs with their key, tempo and layer count">
+      <figure><img class="shot" src="shots/05-library.png" alt="The library listing four songs, each with a small loop ring showing how many layers it holds">
         <figcaption>Everything you have made, on this phone, with the settings tucked underneath.</figcaption></figure>
     </div>
   </div>

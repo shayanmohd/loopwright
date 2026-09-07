@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#12140E">
 <title>Loopwright</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="fonts/fonts.css">
@@ -11,8 +12,23 @@
 </head>
 <body>
 
+<!-- The mark, defined once and used at every size: a waveform bent until its
+     ends meet. It is the launcher icon, the loop ring, and the library thumbnail. -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <symbol id="mark" viewBox="0 0 108 108">
+      <circle cx="54" cy="54" r="26.5" fill="none" stroke="currentColor" stroke-width="7.4" opacity="0.42"/>
+      <path d="M27.5 54 C34.4 54 33.1 41 40 41 C47.7 41 46.3 67 54 67 C61.2 67 59.8 41 67 41 C74.4 41 73.1 54 80.5 54"
+            fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+</svg>
+
 <header id="topbar" hidden>
-  <button class="tb-title" id="tbTitle"><span id="tbTitleText">Untitled</span></button>
+  <button class="tb-title" id="tbTitle">
+    <svg class="brandmark" aria-hidden="true" style="color:var(--accent)"><use href="#mark"/></svg>
+    <span id="tbTitleText">Untitled</span>
+  </button>
   <button class="tb-key" id="tbKey">
     <span class="num" id="tbBpm">100</span>
     <span class="unit">bpm</span>
@@ -35,8 +51,8 @@
           <span class="pad-sub" id="padSub">Tap and hum a melody</span>
         </button>
       </div>
-      <p class="padnote" id="padNote"></p>
     </div>
+    <p class="padnote" id="padNote"></p>
 
     <div class="layerstrip" id="layerStrip"></div>
 
@@ -75,6 +91,7 @@
           <button class="btn" id="playSong">Play the song</button>
           <button class="btn ghost" id="shapeBtn">Suggest a shape</button>
         </div>
+        <p class="help warn" id="songErr" hidden></p>
         <div class="progress" id="songProg" hidden><i></i></div>
       </div>
 
@@ -147,9 +164,18 @@
 </main>
 
 <nav id="tabs" hidden>
-  <button class="tab is-on" data-view="pad">Pad</button>
-  <button class="tab" data-view="arrange">Arrange</button>
-  <button class="tab" data-view="library">Library</button>
+  <button class="tab is-on" data-view="pad">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.4"/><path d="M3.6 12 C5.4 12 5.1 8.5 7 8.5 C9.1 8.5 8.7 15.5 10.8 15.5 C12.7 15.5 12.4 8.5 14.3 8.5 C16.3 8.5 16 12 18 12"/></svg>
+    Pad
+  </button>
+  <button class="tab" data-view="arrange">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.6" y="6" width="5.2" height="12" rx="1.6"/><rect x="9.4" y="4" width="5.2" height="16" rx="1.6"/><rect x="16.2" y="8" width="5.2" height="8" rx="1.6"/></svg>
+    Arrange
+  </button>
+  <button class="tab" data-view="library">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="5.2"/><path d="M14 5.2 a7.6 7.6 0 0 1 0 13.6"/><path d="M17.4 3.2 a10.4 10.4 0 0 1 0 17.6"/></svg>
+    Library
+  </button>
 </nav>
 
 <!-- ================= SHEETS ================= -->
@@ -245,13 +271,23 @@
 
 <div class="sheet" id="introSheet" hidden>
   <div class="sheet-panel">
+    <svg class="intro-mark" id="introMark" viewBox="0 0 108 108" aria-hidden="true"></svg>
     <p class="intro-eyebrow">Loopwright</p>
     <h2 class="intro-h">The song in your head, out loud.</h2>
     <p class="intro-p">Hum a melody and it comes back as a felt piano. Say boots and cats and it comes back as drums. Stack the loops, drop layers in and out while it plays, and you have made something.</p>
     <ul class="intro-list">
-      <li>You need no theory and no instrument. Your voice is the input.</li>
-      <li>Headphones help a lot. Without them the microphone hears the loop as well as you.</li>
-      <li>Everything stays on this phone. Nothing is uploaded, because the app cannot reach the internet at all.</li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.6" width="6" height="11" rx="3"/><path d="M5.4 11.4 a6.6 6.6 0 0 0 13.2 0 M12 18 v3.4"/></svg>
+        <span>You need no theory and no instrument. Your voice is the input.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15 v-3 a8 8 0 0 1 16 0 v3"/><rect x="2.6" y="14.2" width="4.4" height="6.6" rx="2.2"/><rect x="17" y="14.2" width="4.4" height="6.6" rx="2.2"/></svg>
+        <span>Headphones help a lot. Without them the microphone hears the loop as well as you.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.6" width="12" height="18.8" rx="2.6"/><path d="M10.4 18.4 h3.2"/></svg>
+        <span>Everything stays on this phone. Nothing is uploaded, because the app cannot reach the internet at all.</span>
+      </li>
     </ul>
     <button class="btn wide" id="introGo">Let me hum something</button>
   </div>
@@ -269,7 +305,7 @@
 
 <div class="busy" id="busy" hidden>
   <div class="busy-inner">
-    <div class="pulse" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     <p id="busyText">Listening back</p>
   </div>
 </div>

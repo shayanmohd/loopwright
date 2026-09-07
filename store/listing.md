@@ -10,7 +10,7 @@ Loopwright: Hum to Song
 ## Short description (78 / 80)
 Hum a melody, beatbox a beat, and loop them into real songs. No theory needed.
 
-## Full description (3915 / 4000)
+## Full description (3987 / 4000)
 Everyone has melodies. Almost nobody has an instrument, theory, or a studio they understand. Loopwright closes that gap with the oldest interface there is: your voice.
 
 Hum something. It comes back as a felt piano, in time and in key. Say boots and cats over it. That comes back as drums. Stack a bass line under both, drop layers in and out while it plays, and ten minutes later a person who has never played anything has made something that sounds like music.
@@ -18,14 +18,16 @@ Hum something. It comes back as a felt piano, in time and in key. Say boots and 
 YOUR VOICE IS THE INSTRUMENT
 Nobody hums accurately, so the app is built around that instead of against it. It tracks your pitch note by note, works out the key you are implying and moves your wobbly notes into it, then pulls your timing towards the grid without flattening the character out of it. A slider on every layer runs from exactly as you played it to exactly on the grid, and it starts most of the way towards you.
 
-Beatboxing is sorted the same way. Where the energy of a sound sits decides whether it lands as a kick, a snare or a hat, and the groove you actually mouthed is kept.
+Beatboxing is sorted the same way. Where a sound's energy sits decides whether it lands as a kick, a snare or a hat, and the groove you mouthed is kept.
 
 Your original take is kept too. One toggle plays your own voice back in place of the instrument, so you can always hear what you really sang.
 
 LOOP LIKE A BUSKER
-One screen, one big pad. Tap and hum, tap again to close the loop, and it starts cycling immediately. Tap once more to overdub the next layer, which lands exactly one loop long. Up to eight layers a scene, arranged as a ring of glowing segments around the pad.
+One screen, one big pad. Tap and hum, tap again to close the loop, and it starts cycling immediately. Tap once more to overdub the next layer, which lands exactly one loop long. Up to eight layers a scene.
 
-Tap a segment while it plays and that layer drops out of the mix. Tap it again and it comes back. Muting and un-muting live is most of what makes looping feel like playing, and it costs no theory at all.
+The ring around the pad is your loop, drawn as one waveform bent until its ends meet. Each layer takes a slice and draws its own shape there, so you can see the song as well as hear it.
+
+Tap a slice while it plays and that layer drops out of the mix. Tap it again and it comes back. Muting and un-muting live is most of what makes looping feel like playing, and it costs no theory at all.
 
 The tempo is whatever your first take was. Everything after it conforms.
 
@@ -34,7 +36,7 @@ Not five hundred presets behind a search box. Nine voices with names and opinion
 
 Felt, a piano with the hammers muffled. Dust, a lo fi synth warbling like stretched tape. Upright, a double bass with the fret noise left in. Brass Sunday, three soft horns. Choirette, your melody sung back by a small room of yous. Nylon, a plucked bedroom guitar. Glass, a music box. Kit, tight studio drums. Cardboard, a box and a knee and a shush.
 
-Every one of them is built out of oscillators and filters at the moment it sounds, which is why the whole app is tiny and works in airplane mode. Any layer can be re-voiced afterwards with one tap.
+Every one is built out of oscillators and filters as it sounds, which is why the app is tiny and works in airplane mode. Any layer can be re-voiced afterwards with one tap.
 
 FROM LOOP TO SONG
 A set of loops is a scene. Copy it, mute two layers, add one, and the copy is your chorus. Line the scenes up in a strip, say how many times each goes round, and that is a song. One button will propose intro, verse, chorus, verse, chorus, out if you would rather not decide.
@@ -48,12 +50,12 @@ Your songs, your layers and your recordings live in this phone's private storage
 
 No watermark is ever added to your audio and nothing is claimed over what you make. Your songs are yours, including commercially.
 
-The app is free and complete. No subscription, no in-app purchase, no locked voices, no export cap, no adverts. Two permissions: the microphone, because it listens to you, and vibration, for the count-in you can feel.
+The app is free and complete. No subscription, no in-app purchase, no locked voices, no export cap, no adverts. Two permissions: the microphone, because it listens, and vibration, for the count-in you can feel.
 
 WORTH KNOWING
 Headphones help a great deal. Without them the microphone hears the loop as well as it hears you.
 
-There is no feed, no profile and no community inside Loopwright. You share a song by exporting the file and sending it to whoever you like.
+There is no feed and no community inside Loopwright. You share a song by exporting the file and sending it to whoever you like.
 
 You have been humming it for years. Give it four seconds.
 
@@ -83,5 +85,6 @@ Privacy policy: https://shayanmohd.github.io/loopwright/privacy-policy.html
 - Target audience: 13 and over. Nothing in the app is directed at children.
 - Content rating questionnaire: no violence, no sexual content, no profanity, no controlled substances,
   no gambling, no user-generated content sharing, no user-to-user communication, no location sharing.
-- AI-generated assets: none. The icon and feature graphic are drawn procedurally in code from a small
-  JSON spec; the six screenshots are captures of the running app; every sound is synthesised on device.
+- AI-generated assets: none. The icon and the feature graphic are a hand-written SVG and a hand-written
+  HTML page in `store/`, rendered to PNG by a local headless browser; the six screenshots are captures of
+  the running app; every sound is synthesised on the device as it plays.

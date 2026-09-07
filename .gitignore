@@ -21,3 +21,7 @@ android/app/src/main/assets/www/
 .idea/
 *.iml
 .DS_Store
+
+# Drive-script screenshots are regenerated on demand, not source.
+test/shots/
+test/shots-rm/
