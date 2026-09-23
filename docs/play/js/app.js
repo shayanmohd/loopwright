@@ -426,7 +426,7 @@ const App = (() => {
     if (!res || res.error) {
       padState = 'idle';
       renderPad();
-      note(res && res.error ? res.error : 'Recording did not start.', true);
+      note(res && res.error ? res.error : 'Recording did not start.', true, res && res.refused);
       return;
     }
     if (res.aborted) { padState = 'idle'; renderPad(); return; }
@@ -446,11 +446,30 @@ const App = (() => {
     renderPad();
   }
 
-  function note(text, warn) {
+  /* A note can carry one action. The microphone is the only thing a user can be
+     locked out of: Android stops showing the dialog after two refusals, so
+     "allow it and tap again" is a dead end without a way to the settings page.
+     That note stays until the next one replaces it, rather than fading away. */
+  let noteSeq = 0;
+  function note(text, warn, fixMic) {
     const n = $('#padNote');
+    const seq = ++noteSeq;
     n.textContent = text;
     n.classList.toggle('warn', !!warn);
-    if (text) setTimeout(() => { if (n.textContent === text) { n.textContent = ''; n.classList.remove('warn'); } }, 6500);
+    const canFix = fixMic && window.Native && Native.openAppSettings;
+    if (canFix) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quietlink';
+      b.textContent = 'Open app settings';
+      b.addEventListener('click', () => { try { Native.openAppSettings(); } catch (e) {} });
+      n.appendChild(b);
+    }
+    if (text && !canFix) {
+      setTimeout(() => {
+        if (noteSeq === seq) { n.textContent = ''; n.classList.remove('warn'); }
+      }, 6500);
+    }
   }
 
   async function commitTake(res, voiceId, drum, first) {

@@ -243,8 +243,10 @@ body.bare #stage { top: 0; bottom: 0; }
 
 .padnote { font-size: 13px; color: var(--muted); margin: 0; text-align: center;
   min-height: 34px; padding: 0 12px; display: flex; align-items: center;
-  justify-content: center; flex: 0 0 auto; line-height: 1.32; }
+  justify-content: center; flex: 0 0 auto; line-height: 1.32;
+  flex-wrap: wrap; gap: 0 8px; }
 .padnote.warn { color: var(--accent-lift); }
+.padnote .quietlink { color: var(--accent); font-size: 13px; padding: 4px 2px; }
 
 /* the ring: one closed waveform, cut into a segment for each layer */
 .seg { fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }

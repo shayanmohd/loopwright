@@ -1,3 +1,5 @@
-A new look, and a mark of its own. The ring around the pad is now your loop drawn as a waveform: every layer takes a slice and shows its own shape, so you can see the song as well as hear it.
+Recording works again.
 
-Fixed: a quick double tap on the pad could arm a second take over the first, or add two scenes at once. A very long arrangement now says so before it tries to render. The pad now fits every screen. Playback, recording and the microphone all stop when you leave the app.
+In the last version the pad could not reach the microphone at all. You tapped it, nothing was heard, and it said no microphone was available. The cause was a permission missing from the app itself, not anything on your phone, and it is fixed: hum a melody or a beat and it becomes a layer.
+
+If you have ever refused the microphone, the pad now offers a way straight to the settings page where you can turn it back on.

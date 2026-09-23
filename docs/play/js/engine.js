@@ -64,10 +64,11 @@ const Engine = (() => {
         }
       });
     } catch (e) {
-      micErr = e && e.name === 'NotAllowedError'
-        ? 'Loopwright needs the microphone to hear you. Allow it and tap the pad again.'
+      const refused = !!(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError'));
+      micErr = refused
+        ? 'Loopwright needs the microphone to hear you.'
         : 'No microphone was available just then.';
-      return { ok: false, error: micErr };
+      return { ok: false, error: micErr, refused: refused };
     }
     capture.sr = c.sampleRate;
     micNode = c.createMediaStreamSource(stream);
@@ -390,7 +391,7 @@ const Engine = (() => {
   async function record(project, opts) {
     const c = ready(); if (!c) return { error: 'No audio on this device.' };
     const m = await micReady();
-    if (!m.ok) return { error: m.error };
+    if (!m.ok) return { error: m.error, refused: m.refused };
     if (rec) return { error: 'Already recording.' };
 
     const spb = 60 / project.bpm;

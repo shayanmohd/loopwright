@@ -16,6 +16,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -76,7 +77,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-            val ok = grants.values.all { it }
+            // An empty result map means the dialog was cancelled, not granted.
+            val ok = grants.isNotEmpty() && grants.values.all { it }
             pendingWebPermission?.let { req ->
                 if (ok) req.grant(req.resources) else req.deny()
                 pendingWebPermission = null
@@ -253,6 +255,20 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface fun hasAmplitudeControl(): Boolean = vibrator?.hasAmplitudeControl() == true
 
         @JavascriptInterface fun cancelVibration() { vibrator?.cancel() }
+
+        /**
+         * Opens this app's own settings page. Once the microphone has been refused
+         * twice Android stops showing the dialog, so the in-app prompt is the only
+         * route left back to the switch.
+         */
+        @JavascriptInterface
+        fun openAppSettings() {
+            val i = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null)
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runOnUiThread { try { startActivity(i) } catch (e: Exception) { Log.e(TAG, "app settings failed", e) } }
+        }
 
         @JavascriptInterface fun keepAwake(on: Boolean) {
             runOnUiThread {
